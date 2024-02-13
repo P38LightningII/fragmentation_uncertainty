@@ -10,7 +10,7 @@ from scipy.integrate import odeint
 from sgp4.api import jday
 from datetime import datetime
 from orbit_conversions import coes2rv, rv2coes
-from orbital_perturbations import satellite_dynamics
+from ode import two_body_ode_with_perturbations
 
 
 def extract_vimpel(vimpel_file:str, index=0)->dict:
@@ -81,7 +81,7 @@ def vimpel_to_state(coes:list)->np.ndarray:
     return r, v
 
 
-def vimpel_prop(vimpel_file:str, tf:datetime, cdrag:float, cdiff:float, dt=3600, index=0):
+def vimpel_propagation(vimpel_file:str, tf:datetime, cdrag:float, cdiff:float, dt=3600, index=0):
     """ Propagation of a vimpel file object to desired final time tf
         * Requires a Vimpel data file as input
 
@@ -132,17 +132,10 @@ def vimpel_prop(vimpel_file:str, tf:datetime, cdrag:float, cdiff:float, dt=3600,
     state0 = r.tolist() + v.tolist()  # initial state of object [km, km, km, km/s, km/s, km/s]
     
     # solve ODE to get final parent state
-    y = odeint(ode_pert, state0, t, args=(jd, space_object), atol=1e-9, rtol=1e-9)
+    y = odeint(two_body_ode_with_perturbations, state0, t, args=(jd, space_object), atol=1e-9, rtol=1e-9)
     statef = y[-1]
     r_prop = statef[:3]
     v_prop = statef[3:]
     coes_prop = rv2coes(r_prop, v_prop)  # angles in [rad]
 
     return r_prop, v_prop, coes_prop
-
-
-def ode_pert(state:list, t:np.ndarray, jd:tuple, space_obj):
-    """Propagator"""
-    jd = jd[0] + jd[1]
-    jd = jd + t / 86400  # updated Julian date [days]
-    state_derivative = satellite_dynamics(t, state, jd, space_obj, perturbations='J2, drag, SRP, 3B', degree=4, order=2)

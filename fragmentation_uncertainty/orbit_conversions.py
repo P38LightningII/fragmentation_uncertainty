@@ -69,26 +69,6 @@ def coes2rv(coes:list, deg=False, mean_anom=False, mu=pl.earth['mu'])->np.ndarra
     return r, v  # [km, km/s]
 
 
-def eci_to_perif(raan:float, aop:float, inc:float)-> np.ndarray:
-    """ECI inertial to perifocal rotation matrix
-
-    :param raan: [rad] right ascension of the ascending node
-    :type raan: float
-    :param aop: [rad] argument of perigee
-    :type aop: float
-    :param inc: [rad] inclination
-    :type inc: float
-    :return: 3x3 ECI to perifocal rotation matrix
-    :rtype: np.ndarray
-    """
-    row0 = [-np.sin(raan)*np.cos(inc)*np.sin(aop) + np.cos(raan)*np.cos(aop),
-            np.cos(raan)*np.cos(inc)*np.sin(aop) + np.sin(raan)*np.cos(aop), np.sin(inc)*np.sin(aop)]
-    row1 = [-np.sin(raan)*np.cos(inc)*np.cos(aop) - np.cos(raan)*np.sin(aop),
-            np.cos(raan)*np.cos(inc)*np.cos(aop) - np.sin(raan)*np.sin(aop), np.sin(inc)*np.cos(aop)]
-    row2 = [np.sin(raan)*np.sin(inc), -np.cos(raan)*np.sin(inc), np.cos(inc)]
-    return np.array([row0, row1, row2])
-
-
 def ecc_anomaly(arr:list, mean_anom=True, tol=1e-8)->float:
     """Calculate eccentric anomaly
 
@@ -189,6 +169,52 @@ def rv2coes(r:np.ndarray, v:np.ndarray, mu=pl.earth['mu'])->list:
     return  coes 
 
 
+def eci_to_perif(raan:float, inc:float, aop:float)-> np.ndarray:
+    """ECI inertial to perifocal rotation matrix (eph)
+
+    :param raan: [rad] right ascension of the ascending node
+    :type raan: float
+    :param inc: [rad] inclination
+    :type inc: float
+    :param aop: [rad] argument of perigee
+    :type aop: float
+    :return: 3x3 ECI to perifocal rotation matrix
+    :rtype: np.ndarray
+    """
+    row0 = [-np.sin(raan)*np.cos(inc)*np.sin(aop) + np.cos(raan)*np.cos(aop),
+            np.cos(raan)*np.cos(inc)*np.sin(aop) + np.sin(raan)*np.cos(aop), np.sin(inc)*np.sin(aop)]
+    row1 = [-np.sin(raan)*np.cos(inc)*np.cos(aop) - np.cos(raan)*np.sin(aop),
+            np.cos(raan)*np.cos(inc)*np.cos(aop) - np.sin(raan)*np.sin(aop), np.sin(inc)*np.cos(aop)]
+    row2 = [np.sin(raan)*np.sin(inc), -np.cos(raan)*np.sin(inc), np.cos(inc)]
+    return np.array([row0, row1, row2])
+
+
+def eci_to_rdx(raan:float, inc:float, aop:float, ta:float)->np.ndarray:
+    """Transformation matrix from ECI to radial/downrange/crossrange (RDX) frame
+        * similar to ECI to perifocal frame, except x points to the object, instead of the periapse
+
+    :param raan: [rad] right ascension of the ascending node
+    :type raan: float
+    :param inc: [rad] inclination
+    :type inc: float
+    :param aop: [rad] argument of perigee
+    :type aop: float
+    :param ta: [rad] true anomaly
+    :type ta: float
+    :return: 3x3 ECI to RDX transformation matrix
+    :rtype: np.ndarray
+    """
+    arg_lat = aop + ta  # [rad] argument of latitude
+    if (arg_lat % 2*np.pi) > np.pi:
+        inc = -inc
+    row0 = [-np.sin(raan)*np.cos(inc)*np.sin(arg_lat) + np.cos(raan)*np.cos(arg_lat),
+            np.cos(raan)*np.cos(inc)*np.sin(arg_lat) + np.sin(raan)*np.cos(arg_lat), np.sin(inc)*np.sin(arg_lat)]
+    row1 = [-np.sin(raan)*np.cos(inc)*np.cos(arg_lat) - np.cos(raan)*np.sin(arg_lat),
+            np.cos(raan)*np.cos(inc)*np.cos(arg_lat) - np.sin(raan)*np.sin(arg_lat), np.sin(inc)*np.cos(arg_lat)]
+    row2 = [np.sin(raan)*np.sin(inc), -np.cos(raan)*np.sin(inc), np.cos(inc)]
+    return np.array([row0, row1, row2])
+
+
 def ico_to_rdx(r:np.ndarray, v:np.ndarray)->np.ndarray:
     """Transformation matrix from in-track/cross-track/out-of-plane (ICO) frame to radial/downrange/crossrange (RDX)
 
@@ -210,39 +236,23 @@ def ico_to_rdx(r:np.ndarray, v:np.ndarray)->np.ndarray:
     chat = np.cross(-ohat, ihat)  # cross-track
 
     theta = np.arccos(np.dot(dhat, ihat))  # [rad] rotation angle from ICO to RDX
-    dcm_ico2rdx = [[-np.sin(theta), np.cos(theta), 0], [np.cos(theta), np.sin(theta), 0], [0, 0, 1]]
+    dcm_ico2rdx = np.array([[-np.sin(theta), np.cos(theta), 0], [np.cos(theta), np.sin(theta), 0], [0, 0, 1]])
     return dcm_ico2rdx
 
 
-def eci_to_rdx(raan:float, inc:float, aop:float, ta:float)->np.ndarray:
-    """Transformation matrix from ECI to radial/downrange/crossrange (RDX) frame
-       * angles in radians
+def xyz_to_rdx(r:np.ndarray, v:np.ndarray)->np.ndarray:
+    """Transformation matrix from inertial xyz coordinate frame to radial/downrange/crossrange (RDX)
 
-    :param raan: [rad] right ascension of the ascending node
-    :type raan: float
-    :param inc: [rad] inclination
-    :type inc: float
-    :param aop: [rad] argument of perigee
-    :type aop: float
-    :param ta: [rad] true anomaly
-    :type ta: float
-    :return: 3x3 ECI to RDX transformation matrix
+    :param r: [km] position vector 
+    :type r: np.ndarray
+    :param v: [km/s] velocity vector
+    :type v: np.ndarray
+    :return: 3x3 xyz to RDX transformation matrix
     :rtype: np.ndarray
     """
-    arg_lat = aop + ta  # [rad] argument of latitude
-    if (arg_lat % 2*np.pi) > np.pi:
-        inc = -inc
-    cR = np.cos(raan)
-    sR = np.sin(raan)
-    cI = np.cos(inc)
-    sI = np.sin(inc)
-    cA = np.cos(arg_lat)
-    sA = np.sin(arg_lat)
-    dcm_eci2rdx = [[cR*cA - sR*cI*sA, sR*cA + cR*cI*sA, sA*sI],
-                   [-cR*sA - sR*cI*cA, -sR*sA + cR*cI*cA, cA*sI],
-                   [sI*sR, -sI*cR, cI]]
-    # DCM_ECI2RDX = [[cR*cA - sR*cI*sA, cR*sA + sR*cI*cA, sR*sI],
-    #                [-sR*cA - cR*cI*sA, -sR*sA + cR*cI*cA, cR*sI],
-    #                [sI*sA, -sI*cA, cI]]
+    rhat = r / norm(r)
+    xhat = (np.cross(r, v)) / norm(np.cross(r, v))
+    dhat = np.cross(xhat, rhat)
 
-    return dcm_eci2rdx
+    dcm_xyz2rdx = np.vstack((rhat, dhat, xhat))  # transformation matrix from inertial to radial, downrange, crossrange
+    return dcm_xyz2rdx

@@ -49,7 +49,7 @@ def generate_sigma_points(num_obj:float, nx:float, mean:np.ndarray, covariance:n
     :type mean: np.ndarray
     :param covariance: covariance matrix of each object
     :type covariance: np.ndarray
-    :param version: version of unscented transform - either original (Julier) or scaled(van de Merwe) , defaults to 'scaled'
+    :param version: version of unscented transform - either original (Julier) or scaled (van de Merwe) , defaults to 'scaled'
     :type version: str, optional
     :return: _description_
     :rtype: float
