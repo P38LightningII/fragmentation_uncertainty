@@ -1,0 +1,14 @@
+numpy
+scipy
+matplotlib
+pandas
+typing
+plotly
+netCDF4
+scikit-image
+sphinx_copybutton
+sphinx_gallery
+pydata_sphinx_theme
+black
+sgp4
+datetime
