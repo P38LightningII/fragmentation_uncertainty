@@ -5,7 +5,7 @@
 import numpy as np
 from numpy.linalg import norm
 import planetary_data as pl
-from orbital_perturbations import satellite_dynamics
+# from orbital_perturbations import satellite_dynamics
 
 
 def two_body_ode(state, t):

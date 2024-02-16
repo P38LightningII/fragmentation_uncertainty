@@ -15,6 +15,8 @@ import datetime
 import numpy as np
 from numpy.linalg import norm
 import planetary_data as pl
+# from planetary_data.constants import earth  ## SORT THIS OUT!
+import pdb
 
 
 def coes2rv(coes:list, deg=False, mean_anom=False, mu=pl.earth['mu'])->np.ndarray:
@@ -205,7 +207,7 @@ def eci_to_rdx(raan:float, inc:float, aop:float, ta:float)->np.ndarray:
     :rtype: np.ndarray
     """
     arg_lat = aop + ta  # [rad] argument of latitude
-    if (arg_lat % 2*np.pi) > np.pi:
+    if (arg_lat % (2*np.pi)) > np.pi:
         inc = -inc
     row0 = [-np.sin(raan)*np.cos(inc)*np.sin(arg_lat) + np.cos(raan)*np.cos(arg_lat),
             np.cos(raan)*np.cos(inc)*np.sin(arg_lat) + np.sin(raan)*np.cos(arg_lat), np.sin(inc)*np.sin(arg_lat)]
@@ -234,9 +236,10 @@ def ico_to_rdx(r:np.ndarray, v:np.ndarray)->np.ndarray:
     ihat = v / norm(v)  # in-track = direction of velocity
     ohat = (np.cross(r, v)) / norm(np.cross(r, v))  # out-of-plane
     chat = np.cross(-ohat, ihat)  # cross-track
+    # chat = np.cross(ihat, ohat)  # same thing
 
     theta = np.arccos(np.dot(dhat, ihat))  # [rad] rotation angle from ICO to RDX
-    dcm_ico2rdx = np.array([[-np.sin(theta), np.cos(theta), 0], [np.cos(theta), np.sin(theta), 0], [0, 0, 1]])
+    dcm_ico2rdx = np.array([[np.sin(theta), np.cos(theta), 0], [np.cos(theta), -np.sin(theta), 0], [0, 0, 1]])
     return dcm_ico2rdx
 
 
@@ -256,3 +259,21 @@ def xyz_to_rdx(r:np.ndarray, v:np.ndarray)->np.ndarray:
 
     dcm_xyz2rdx = np.vstack((rhat, dhat, xhat))  # transformation matrix from inertial to radial, downrange, crossrange
     return dcm_xyz2rdx
+
+
+def xyz_to_ico(r:np.ndarray, v:np.ndarray)->np.ndarray:
+    """Transformation matrix from inertial xyz coordinate frame to in-track/cross-track/out-of-plane (ICO)
+
+    :param r: [km] position vector 
+    :type r: np.ndarray
+    :param v: [km/s] velocity vector
+    :type v: np.ndarray
+    :return: 3x3 xyz to ICO transformation matrix
+    :rtype: np.ndarray
+    """
+    ihat = v / norm(v)  # in-track = direction of velocity
+    ohat = (np.cross(r, v)) / norm(np.cross(r, v))  # out-of-plane
+    chat = np.cross(-ohat, ihat)  # cross-track
+
+    dcm_xyz2ico = np.vstack((ihat, chat, ohat))  # transformation matrix from inertial to in-track/cross-track/out-of-plane
+    return dcm_xyz2ico

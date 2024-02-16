@@ -1,0 +1,12 @@
+__pycache__
+bin
+etc
+lib
+include
+share
+
+*.DS_Store
+# *.txt
+*.pickle
+*.cfg
+*.env

@@ -5,23 +5,26 @@
 
 import numpy as np
 from scipy.linalg import block_diag
+from typing import Optional, Union
+import pdb
 
 
-def get_covariance_from_noise(num_obj:float,sigma_r:float,sigma_v:float,file_format:str) -> np.ndarray:
+def get_covariance_from_noise(num_obj:float,sigma_r:np.ndarray,sigma_v:Optional[Union[float, np.ndarray]],file_format:str) -> np.ndarray:
     """Obtain covariance matrix given position and velocity noise parameters for a given file format
 
     :param num_obj: number of objects
     :type num_obj: float
     :param sigma_r: [km] position noise
-    :type sigma_r: float
-    :param sigma_v: [km/s] velocity noise
-    :type sigma_v: float
+    :type sigma_r: np.ndarray
+    :param sigma_v: [km/s] velocity noise - either a single value (vimpel) or [1x3] array (tle)
+    :type sigma_v: Optional[Union[float, np.ndarray]]
     :param file_format: file format of the data, 'Vimpel' or 'TLE'
     :type file_format: str
     :raises Exception: _description_
     :return: _description_
     :rtype: np.ndarray
     """
+    covariance = []
     for k in range(num_obj):
         if file_format == 'Vimpel':
             cov_r = np.diag([sigma_r[k][0]**2, sigma_r[k][1]**2, sigma_r[k][2]**2])
@@ -32,7 +35,8 @@ def get_covariance_from_noise(num_obj:float,sigma_r:float,sigma_v:float,file_for
             # cov_r = sigma_r ** 2 * np.eye(3)
         else:
             raise Exception("Not a valid file format (use Vimpel or TLE")
-        covariance = block_diag(cov_r, cov_v)
+        cov_k = block_diag(cov_r, cov_v)  # [km, km/s] covariance matrix 
+        covariance.append(cov_k)  # store covariance matrices for all objects
     
     return covariance
 
@@ -73,11 +77,13 @@ def generate_sigma_points(num_obj:float, nx:float, mean:np.ndarray, covariance:n
         c = nx + kappa_   # original definition
 
     s_num = 2 * nx + 1  # number of sigma points
-    sigma_points = np.zeros((num_obj, s_num, nx))  # initialize sigma points
+    sigma_points = []
+    # sigma_points = np.zeros((num_obj, s_num, nx))  # initialize sigma points
     for k in range(num_obj):
-        A = np.sqrt(c) * np.linalg.cholesky(covariance)
-        Y = mean[k, :] * np.ones((nx, 1))
-        sigma_points[k, :, :] = np.vstack((mean[k, :], Y + A, Y - A))  # sigma points for each object
+        A = np.sqrt(c) * np.linalg.cholesky(covariance[k])
+        Y = mean[k] * np.ones((nx, 1))
+        sigma_points.append(np.vstack((mean[k], Y + A, Y - A)) )
+        # sigma_points[k, :, :] = np.vstack((mean[k], Y + A, Y - A))  # sigma points for each object
 
     # Mean weights
     weight_mean = np.zeros(s_num)
