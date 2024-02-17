@@ -6,7 +6,7 @@ from scipy.integrate import odeint
 from pymap3d import eci2geodetic
 
 from .catalog import extract_vimpel
-from .propagation import two_body_propagation_with_perturbations, two_body_propagation #, OrbitingBody
+from .propagation import two_body_propagation_with_perturbations, two_body_propagation, OrbitingBody
 from .ode import two_body_ode, two_body_ode_with_perturbations
 from .orbit_conversions import xyz_to_rdx, ico_to_rdx, eci_to_rdx, coes2rv
 from .perturbation_functions import velocity_perturbations, angular_distribution
@@ -36,12 +36,12 @@ def propagation_inputs(filename:str, cdrag:float, cdiff:float, index=0)->tuple:
     state0 = r0.tolist() + v0.tolist()  # [km, km/s]
 
     # establish object parameters
-    object_parameters = {
-        'C_drag': cdrag,
-        'C_diff': cdiff,
-        'AMR': vimpel_data['amr'],
-    }
-    # object_parameters = OrbitingBody(cdrag=cdrag, cdiff=cdiff, amr=vimpel_data['amr'])
+    # object_parameters = {
+    #     'C_drag': cdrag,
+    #     'C_diff': cdiff,
+    #     'AMR': vimpel_data['amr'],
+    # }
+    object_parameters = OrbitingBody(cdrag=cdrag, cdiff=cdiff, amr=vimpel_data['amr'])
 
     return vimpel_data, state0, object_parameters
 
@@ -64,8 +64,8 @@ def propagate_parent(filename:str, tf:datetime, cdrag:float, cdiff:float, parent
     """
     # propagate parent to time of breakup and extract cartesian and keplerian state data
     vimpel_data, state0, object_parameters = propagation_inputs(filename, cdrag, cdiff, parent_index)
-    rf, vf, coes = two_body_propagation(vimpel_data['epoch'], tf, state0)
-    # rf, vf, coes = two_body_propagation_with_perturbations(vimpel_data['epoch'], tf, state0, object_parameters)  ## USE THIS!!
+    # rf, vf, coes = two_body_propagation(vimpel_data['epoch'], tf, state0)  # for testing
+    rf, vf, coes = two_body_propagation_with_perturbations(vimpel_data['epoch'], tf, state0, object_parameters)  ## USE THIS!!
 
     period = 2 * np.pi / np.sqrt(pl.earth['mu'] / coes[0] ** 3)
 
@@ -104,13 +104,13 @@ def propagate_parent(filename:str, tf:datetime, cdrag:float, cdiff:float, parent
 def vimpel_parameters(filename, tf, cdrag, cdiff, parent, i):
 
     vimpel_data, state0, object_parameters = propagation_inputs(filename, cdrag, cdiff, i)
-    rf, vf, coes = two_body_propagation(vimpel_data['epoch'], tf, state0)
-    # rf, vf, coes = two_body_propagation_with_perturbations(vimpel_data['epoch'], tf, state0, object_parameters)
+    # rf, vf, coes = two_body_propagation(vimpel_data['epoch'], tf, state0)
+    rf, vf, coes = two_body_propagation_with_perturbations(vimpel_data['epoch'], tf, state0, object_parameters)
 
     # calculate period, perigee, and apogee
     period = 2 * np.pi / np.sqrt(pl.earth['mu'] / coes[0] ** 3)  # [sec]
-    perigee = coes[0] * (1 - coes[1])  # [km] perigee
-    apogee = coes[0] * (1 + coes[1])   # [km] apogee 
+    perigee = coes[0] * (1 - coes[1]) - pl.earth['radius']  # [km] perigee altitude
+    apogee = coes[0] * (1 + coes[1]) - pl.earth['radius']   # [km] apogee altitude
 
     # calculate radial, downrange, and crossrange velocity components
     dv_radial, dv_downrange, dv_crossrange = velocity_perturbations(parent, coes, vf, method='Exact')  # [km/s]
@@ -120,7 +120,7 @@ def vimpel_parameters(filename, tf, cdrag, cdiff, parent, i):
     latitude, longitude = angular_distribution(dv_radial, dv_downrange, dv_crossrange, dV)  # [deg]
     d2r = np.pi/180
 
-    return period, perigee, apogee, dv_radial, dv_downrange, dv_crossrange, latitude*d2r, longitude*d2r
+    return period, perigee, apogee, dv_radial, dv_downrange, dv_crossrange, latitude*d2r, longitude*d2r, rf[0], rf[1], rf[2]
 
 
 def perturbed_vimpel_parameters(filename, tf, cdrag, cdiff, parent, i, perturbed_state, nsigma):
@@ -138,8 +138,8 @@ def perturbed_vimpel_parameters(filename, tf, cdrag, cdiff, parent, i, perturbed
     # cycle through each sigma point
     for j in range(nsigma): 
         vimpel_data, _, object_parameters = propagation_inputs(filename, cdrag, cdiff, i)
-        rf, vf, coes = two_body_propagation(vimpel_data['epoch'], tf, perturbed_state[i][j])
-        # rf, vf, coes = two_body_propagation_with_perturbations(vimpel_data['epoch'], tf, perturbed_state[i][j], object_parameters)
+        # rf, vf, coes = two_body_propagation(vimpel_data['epoch'], tf, perturbed_state[i][j])
+        rf, vf, coes = two_body_propagation_with_perturbations(vimpel_data['epoch'], tf, perturbed_state[i][j], object_parameters)
 
         # save fragment parameters (for every sigma point)
         state_j.append(np.hstack((rf,vf)))
@@ -149,8 +149,8 @@ def perturbed_vimpel_parameters(filename, tf, cdrag, cdiff, parent, i, perturbed
 
         # calculate period, perigee, and apogee
         period_j = np.vstack((period_j, 2 * np.pi / np.sqrt(pl.earth['mu'] / coes[0] ** 3)))    # [sec] period
-        perigee_j = np.vstack((perigee_j, coes[0] * (1 - coes[1])  - pl.earth['radius']))       # [km] perigee altitude
-        apogee_j = np.vstack((apogee_j, coes[0] * (1 + coes[1])  - pl.earth['radius']))         # [km] apogee altitude
+        perigee_j = np.vstack((perigee_j, coes[0] * (1 - coes[1]) - pl.earth['radius']))       # [km] perigee altitude
+        apogee_j = np.vstack((apogee_j, coes[0] * (1 + coes[1]) - pl.earth['radius']))         # [km] apogee altitude
 
         # Calculate fragment radial, downrange, and crossrange velocity components
         dv_r, dv_d, dv_x = velocity_perturbations(parent, coes, vf, method='Exact')  # [km/s]

@@ -76,6 +76,17 @@ class TestTransformationFunctions(unittest.TestCase):
         np.testing.assert_array_almost_equal(v_rdx_expected, v_rdx)
 
 
+    def test_coes_to_rv(self):
+        coes = [22674.935274131894,0.8563413528257094,0.8276577425206031,3.309912972058377,
+                0.10304453307522499,3.0373823778612907]
+        r, v = coes2rv(coes, deg=False, mean_anom=False)
+        r_expected = np.array([40203, 6799, 35])
+        v_expected = np.array([0.578, 0.924, -0.886])
+
+        np.testing.assert_array_almost_equal(r_expected, r)
+        np.testing.assert_array_almost_equal(v_expected, v)
+
+
 
 if __name__ == "__main__":
     unittest.main()

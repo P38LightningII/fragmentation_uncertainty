@@ -64,6 +64,7 @@ def coes2rv(coes:list, deg=False, mean_anom=False, mu=pl.earth['mu'])->np.ndarra
 
     # rotation matrix from perifocal to ECI
     perif2eci = np.transpose(eci_to_perif(raan, aop, inc))
+    pdb.set_trace()
 
     # calculate r and v vectors in inertial frame
     r = np.dot(perif2eci, r_perif)

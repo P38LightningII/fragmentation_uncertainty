@@ -5,7 +5,7 @@
 import numpy as np
 from numpy.linalg import norm
 import planetary_data as pl
-# from orbital_perturbations import satellite_dynamics
+from orbital_perturbations import satellite_dynamics
 
 
 def two_body_ode(state, t):
@@ -22,3 +22,5 @@ def two_body_ode_with_perturbations(state:list, t:np.ndarray, jd:tuple, space_ob
     jd = jd[0] + jd[1]
     jd = jd + t / 86400  # updated Julian date [days]
     state_derivative = satellite_dynamics(t, state, jd, space_obj, perturbations='J2, drag, SRP, 3B', degree=4, order=2)
+
+    return state_derivative

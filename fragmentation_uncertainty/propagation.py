@@ -106,15 +106,15 @@ def sgp4_propagation(tle_file:str, tf:datetime):
     return r, v, coes
 
 
-# class OrbitingBody:
-#     """ Class for defining characteristics of an orbiting body"""
-#     def __init__(self, **kwargs):
-#         # object properties (optional)
-#         self.C_drag = kwargs.get('cdrag', 2.2)  # [-] drag coefficient
-#         self.C_diff = kwargs.get('cdiff', 1)    # [-] diffusion coefficient 
-#         self.AMR = kwargs.get('amr', None)       # [m2/kg] body area to mass ratio
-#         self.BStar = kwargs.get('bstar', None)   # [1/m] B* parameter from TLE
-#         self.CdAM = kwargs.get('cd-am', None)     # [m2/kg] Cdrag*A/M
+class OrbitingBody:
+    """ Class for defining characteristics of an orbiting body"""
+    def __init__(self, **kwargs):
+        # object properties (optional)
+        self.C_drag = kwargs.get('cdrag', 2.2)  # [-] drag coefficient
+        self.C_diff = kwargs.get('cdiff', 1)    # [-] diffusion coefficient 
+        self.AMR = kwargs.get('amr', None)       # [m2/kg] body area to mass ratio
+        self.BStar = kwargs.get('bstar', None)   # [1/m] B* parameter from TLE
+        self.CdAM = kwargs.get('cd-am', None)     # [m2/kg] Cdrag*A/M
 
 
 # def vimpel_propagation(vimpel_file:str, tf:datetime, cdrag:float, cdiff:float, dt=3600, index=0):

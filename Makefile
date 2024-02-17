@@ -18,3 +18,6 @@ startup:
 	. bin/activate 
 
 tests:
+	python -m tests.test_catalog
+	python -m tests.test_transformations
+	python -m tests.test_unscented_transform
